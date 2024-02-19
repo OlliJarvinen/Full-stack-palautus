@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios'
+import contactService from './services/contacts'
 
 const FilterForm = ({ searchTerm, onSearchChange }) => {
   return (
@@ -28,12 +29,13 @@ const PersonForm = ({ newName, newNumber, onNameChange, onNumberChange, onAddPer
   )
 }
 
-const Persons = ({ persons }) => {
+const Persons = ({ persons, onRemoveContact }) => {
   return (
     <div>
       {persons.map((person, index) => (
         <div key={index}>
           {person.name} {person.number}
+          <button onClick={() => onRemoveContact(person.name, person.id)}>Delete</button>
         </div>
       ))}
     </div>
@@ -47,8 +49,8 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
-    axios
-      .get('http://localhost:3001/persons')
+    contactService
+      .getAll()
       .then(response => {
         setPersons(response.data)
       })
@@ -57,7 +59,15 @@ const App = () => {
   const addPerson = (event) => {
     const duplicate = persons.find((person) => person.name === newName)
     if (duplicate) {
-      alert(`${newName} is already added to the phonebook`)
+      if (window.confirm(`${newName} is already added to the phonebook, replace the old number with a new one?`)) {
+        contactService
+        .update(duplicate.name, duplicate.id, newNumber)
+        .then(() => {
+          contactService.getAll().then(response => {
+            setPersons(response.data);
+          });
+        })
+      }
       return
     }
     event.preventDefault();
@@ -65,8 +75,8 @@ const App = () => {
       name: newName,
       number: newNumber
     }
-    axios
-      .post('http://localhost:3001/persons', personObject)
+    contactService
+      .create(personObject)
       .then(response => {
         setPersons(persons.concat(response.data))
         setNewName('')
@@ -87,6 +97,18 @@ const App = () => {
     setSearchTerm(event.target.value)
   }
 
+  const removeContact = (name, id) => {
+    if (window.confirm(`Delete ${name}?`)) {
+      contactService
+        .remove(id)
+        .then(() => {
+          contactService.getAll().then(response => {
+            setPersons(response.data);
+          });
+        })
+    }
+  }
+
   const filteredPersons = persons.filter((person) =>
     person.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -104,7 +126,7 @@ const App = () => {
         onAddPerson={addPerson}
       />
       <h3>Numbers</h3>
-      <Persons persons={filteredPersons} />
+      <Persons persons={filteredPersons} onRemoveContact={removeContact}/>
     </div>
   )
 }
