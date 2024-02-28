@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'
 import contactService from './services/contacts'
+import './index.css'
 
 const FilterForm = ({ searchTerm, onSearchChange }) => {
   return (
@@ -42,11 +42,23 @@ const Persons = ({ persons, onRemoveContact }) => {
   )
 }
 
+const Notification = ({ message }) => {
+  if (message === null) {
+    return null
+  }
+  return (
+    <div className="notification">
+      {message}
+    </div>
+  )
+}
+
 const App = () => {
   const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState("")
   const [newNumber, setNewNumber] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
+  const [operationMessage, setOperationMessage] = useState(null)
 
   useEffect(() => {
     contactService
@@ -57,20 +69,33 @@ const App = () => {
   }, [])
 
   const addPerson = (event) => {
-    const duplicate = persons.find((person) => person.name === newName)
+    event.preventDefault()
+    const duplicate = persons.find((person) => person.name === newName);
     if (duplicate) {
       if (window.confirm(`${newName} is already added to the phonebook, replace the old number with a new one?`)) {
         contactService
-        .update(duplicate.name, duplicate.id, newNumber)
-        .then(() => {
-          contactService.getAll().then(response => {
-            setPersons(response.data);
-          });
-        })
+          .update(duplicate.name, duplicate.id, newNumber)
+          .then(() => {
+            contactService.getAll().then(response => {
+              setPersons(response.data)
+              setOperationMessage(`The number of ${newName} has been updated.`)
+              setTimeout(() => {
+                setOperationMessage(null);
+              }, 5000);
+              setNewName('')
+              setNewNumber('')
+            });
+          })
+          .catch(() => {
+            setOperationMessage(`Information of ${newName} has already been deleted from the server`);
+        setTimeout(() => {
+          setOperationMessage(null)
+        }, 5000)
+          })
       }
-      return
+      return;
     }
-    event.preventDefault();
+    event.preventDefault()
     const personObject = {
       name: newName,
       number: newNumber
@@ -79,11 +104,15 @@ const App = () => {
       .create(personObject)
       .then(response => {
         setPersons(persons.concat(response.data))
+        setOperationMessage(`${newName} has been added.`)
+              setTimeout(() => {
+                setOperationMessage(null);
+              }, 5000);
         setNewName('')
         setNewNumber('')
       })
-    
   }
+  
 
   const handleNameChange = (event) => {
     setNewName(event.target.value)
@@ -103,8 +132,12 @@ const App = () => {
         .remove(id)
         .then(() => {
           contactService.getAll().then(response => {
-            setPersons(response.data);
-          });
+            setPersons(response.data)
+            setOperationMessage(`${name} has been deleted.`)
+            setTimeout(() => {
+              setOperationMessage(null);
+            }, 5000);
+          })
         })
     }
   }
@@ -118,6 +151,7 @@ const App = () => {
       <h2>Phonebook</h2>
       <FilterForm searchTerm={searchTerm} onSearchChange={handleSearchChange}/>
       <h3>Add a new person</h3>
+      <Notification message={operationMessage} />
       <PersonForm
         newName={newName}
         newNumber={newNumber}
